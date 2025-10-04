@@ -1,0 +1,7 @@
+Variant,Model,Accuracy
+Median Impute,Logistic,0.8044692737430168
+Median Impute,RandomForest,0.8044692737430168
+Group Impute,Logistic,0.8100558659217877
+Group Impute,RandomForest,0.7988826815642458
+Model Impute,Logistic,0.8156424581005587
+Model Impute,RandomForest,0.8156424581005587
