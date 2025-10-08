@@ -509,6 +509,33 @@ group_val    = pd.read_csv('group_impute_val.csv')
 model_train  = pd.read_csv('model_impute_train.csv')
 model_val    = pd.read_csv('model_impute_val.csv')
 
+# ====== XỬ LÝ OUTLIERS ======
+def cap_outliers(df, numeric_cols=None, lower_quantile=0.01, upper_quantile=0.99):
+    """
+    Cắt các giá trị ngoại lệ theo percentiles (1%-99% mặc định)
+    df: dataframe
+    numeric_cols: danh sách cột numeric cần xử lý, nếu None sẽ lấy tất cả numeric
+    """
+    df = df.copy()
+    if numeric_cols is None:
+        numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+    
+    for col in numeric_cols:
+        lower = df[col].quantile(lower_quantile)
+        upper = df[col].quantile(upper_quantile)
+        df[col] = df[col].clip(lower=lower, upper=upper)
+    
+    return df
+
+# Ví dụ áp dụng trên các variant sau khi imputing
+numeric_cols = ['Age','Fare','SibSp','Parch']  # cột numeric chính
+median_train = cap_outliers(median_train, numeric_cols)
+median_val   = cap_outliers(median_val, numeric_cols)
+group_train  = cap_outliers(group_train, numeric_cols)
+group_val    = cap_outliers(group_val, numeric_cols)
+model_train  = cap_outliers(model_train, numeric_cols)
+model_val    = cap_outliers(model_val, numeric_cols)
+
 # ============================================
 # 🔹 Feature preprocessing chung
 # ============================================
@@ -718,33 +745,75 @@ results_df
 # 🔹 Chuẩn bị dữ liệu test và tạo file submission
 # ============================================
 
-#  Đọc dữ liệu test
-test = pd.read_csv("test.csv")
+# 1️⃣ Đọc kết quả accuracy
+results_df = pd.read_csv('model_accuracy_summary.csv')
 
-#  Xử lý missing values tương tự train (Median Impute)
-test['Fare'] = test['Fare'].fillna(X['Fare'].median())
-test['Age'] = test['Age'].fillna(X['Age'].median())
-test['Embarked'] = test['Embarked'].fillna(X['Embarked'].mode()[0])
+# 2️⃣ Lấy model + variant có accuracy cao nhất
+best_row = results_df.loc[results_df['Accuracy'].idxmax()]
+best_variant = best_row['Variant']
+best_model_name = best_row['Model']
+print(f"Best Variant: {best_variant}, Best Model: {best_model_name}, Accuracy: {best_row['Accuracy']:.4f}")
+
+# 3️⃣ Load dữ liệu train + val tương ứng với variant tốt nhất
+variant_map = {
+    'Median Impute': ('median_impute_train.csv', 'median_impute_val.csv'),
+    'Group Impute': ('group_impute_train.csv', 'group_impute_val.csv'),
+    'Model Impute': ('model_impute_train.csv', 'model_impute_val.csv')
+}
+train_path, val_path = variant_map[best_variant]
+train_df = pd.read_csv(train_path)
+val_df = pd.read_csv(val_path)
+
+# Kết hợp train + val để fit model trên toàn bộ dữ liệu
+full_train = pd.concat([train_df, val_df], axis=0).reset_index(drop=True)
+X_full = full_train.drop('Survived', axis=1)
+y_full = full_train['Survived']
+
+# 4️⃣ Xác định preprocessor
+cat_cols = X_full.select_dtypes(include=['object', 'category']).columns.tolist()
+num_cols = X_full.select_dtypes(exclude=['object', 'category']).columns.tolist()
+pre = ColumnTransformer(transformers=[
+    ('num', StandardScaler(), num_cols),
+    ('cat', OneHotEncoder(drop='first', sparse_output=False, handle_unknown='ignore'), cat_cols)
+], remainder='passthrough')
+
+# 5️⃣ Khởi tạo model tương ứng
+if best_model_name == 'Logistic':
+    model = LogisticRegression(max_iter=500, random_state=42)
+elif best_model_name == 'RandomForest':
+    # Sử dụng best_rf từ GridSearchCV trước đó
+    model = best_rf
+elif best_model_name == 'XGBoost':
+    model = best_xgb
+elif best_model_name == 'Voting':
+    model = pipe_voting.named_steps['model']  # VotingClassifier đã tạo
+else:
+    raise ValueError(f"Unknown model: {best_model_name}")
+
+# 6️⃣ Fit pipeline trên toàn bộ dữ liệu train
+final_pipe = Pipeline([
+    ('pre', pre),
+    ('model', model)
+])
+final_pipe.fit(X_full, y_full)
+print("✅ Model đã fit trên toàn bộ train + val.")
+
+# 7️⃣ Load test và áp dụng feature engineering (như trước)
+test = pd.read_csv('test.csv')
+test['Fare'] = test['Fare'].fillna(X_full['Fare'].median())
+test['Age'] = test['Age'].fillna(X_full['Age'].median())
+test['Embarked'] = test['Embarked'].fillna(X_full['Embarked'].mode()[0])
 test['HasCabin'] = test['Cabin'].notnull().astype(int)
-
-# Áp dụng feature engineering giống như train
 test_fe = feature_engineer(test)
 
-#  Dự đoán với mô hình tốt nhất (sử dụng pipeline đã huấn luyện)
-final_model = pipe_voting  # sử dụng pipeline có preprocessor đã fit
-
-#  Chuẩn bị dữ liệu test (bỏ cột PassengerId)
 X_test = test_fe.drop(columns=['PassengerId'], errors='ignore')
 
-#  Dự đoán
-test_pred = final_model.predict(X_test)
-
-#  Tạo file submission
+# 8️⃣ Dự đoán và tạo submission
+test_pred = final_pipe.predict(X_test)
 submission = pd.DataFrame({
     'PassengerId': test['PassengerId'],
     'Survived': test_pred.astype(int)
 })
-
-submission.to_csv("submission.csv", index=False)
-print(" Saved submission.csv — ready to upload to Kaggle!")
+submission.to_csv('submission_best.csv', index=False)
+print("✅ Saved submission_best.csv — ready to upload!")
 submission.head()
