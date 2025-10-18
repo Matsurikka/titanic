@@ -29,7 +29,7 @@ except Exception:
 RANDOM_STATE = 42
 print('xgboost available:', xgb_available)
 
-if not os.path.exists('C:\\Users\\hienm\\OneDrive\\Documents\\titanic_ML\\train.csv'):
+if not os.path.exists('C:\\Users\\hienm\\OneDrive\\Desktop\\titanic_ML\\train.csv'):
     raise FileNotFoundError('train.csv not found in the working directory. Please upload it before running.')
 
 train = pd.read_csv('train.csv')
@@ -56,6 +56,58 @@ plt.figure(figsize=(6,4))
 sns.barplot(x='Pclass', y='Survived', data=train)
 plt.title('Survival by Pclass')
 plt.show()
+
+# =============================
+# Heatmap tương quan
+# =============================
+plt.figure(figsize=(8,6))
+corr = train[['Survived','Age','SibSp','Parch','Fare','Pclass']].corr()
+sns.heatmap(corr, annot=True, cmap='coolwarm', fmt='.2f')
+plt.title('Heatmap tương quan giữa các biến số')
+plt.show()
+
+# =============================
+# Phân bố độ tuổi theo Survived
+# =============================
+plt.figure(figsize=(8,6))
+sns.histplot(data=train, x='Age', hue='Survived', multiple='stack', bins=30)
+plt.title('Phân bố độ tuổi theo trạng thái sống sót')
+plt.show()
+
+# =============================
+# Survival theo giới tính và hạng vé (Pclass)
+# =============================
+plt.figure(figsize=(8,6))
+sns.catplot(x='Pclass', y='Survived', hue='Sex', data=train, kind='bar', height=5, aspect=1.3)
+plt.title('Tỷ lệ sống sót theo Pclass và giới tính')
+plt.show()
+
+# =============================
+# Fare vs Survived (biểu đồ hộp)
+# =============================
+plt.figure(figsize=(8,6))
+sns.boxplot(x='Survived', y='Fare', data=train)
+plt.title('Phân bố Fare theo trạng thái sống sót')
+plt.show()
+
+# =============================
+# Family size vs Survived
+# =============================
+train['FamilySize'] = train['SibSp'] + train['Parch'] + 1
+
+plt.figure(figsize=(8,6))
+sns.barplot(x='FamilySize', y='Survived', data=train)
+plt.title('Tỷ lệ sống sót theo kích thước gia đình')
+plt.show()
+
+# =============================
+# Age vs Pclass vs Survived
+# =============================
+plt.figure(figsize=(8,6))
+sns.violinplot(x='Pclass', y='Age', hue='Survived', data=train, split=True)
+plt.title('Phân bố tuổi theo Pclass và trạng thái sống sót')
+plt.show()
+
 
 df_median = train.copy()
 # Age, Fare median; Embarked mode; Cabin -> HasCabin flag
@@ -190,7 +242,7 @@ for col in categorical_cols:
 #  Lưu lại để dễ so sánh sau
 df.to_csv("titanic_feature_v1.csv", index=False)
 
-print("🎉 Feature Engineering hoàn tất! Tổng số cột sau khi tạo:", len(df.columns))
+print(" Feature Engineering hoàn tất! Tổng số cột sau khi tạo:", len(df.columns))
 print("Các cột mới:", [c for c in df.columns if c not in ['PassengerId','Survived','Pclass','Name','Sex','Age','SibSp','Parch','Ticket','Fare','Cabin','Embarked']])
 
 def feature_engineer(df, save_path=None):
@@ -580,8 +632,8 @@ rf_grid = GridSearchCV(
     verbose=1
 )
 rf_grid.fit(X_train, y_train)
-print("🌲 Best RF Params:", rf_grid.best_params_)
-print("🌲 Best RF CV Accuracy:", rf_grid.best_score_)
+print(" Best RF Params:", rf_grid.best_params_)
+print(" Best RF CV Accuracy:", rf_grid.best_score_)
 best_rf = rf_grid.best_estimator_.named_steps['model']
 
 # === 2. Tuning XGBoost ===
@@ -607,8 +659,8 @@ xgb_grid = GridSearchCV(
     verbose=1
 )
 xgb_grid.fit(X_train, y_train)
-print("⚡ Best XGB Params:", xgb_grid.best_params_)
-print("⚡ Best XGB CV Accuracy:", xgb_grid.best_score_)
+print(" Best XGB Params:", xgb_grid.best_params_)
+print(" Best XGB CV Accuracy:", xgb_grid.best_score_)
 best_xgb = xgb_grid.best_estimator_.named_steps['model']
 
 # =====================================
@@ -698,7 +750,6 @@ print(f" Voting Accuracy: {val_acc:.4f}")
 
 # ============================================
 # 🔹 Hàm đánh giá từng biến thể (dùng mô hình đã tuning)
-# ============================================
 def evaluate_variant(train_df, val_df, variant_name):
     results = []
     X_train = train_df.drop('Survived', axis=1)
@@ -719,22 +770,19 @@ def evaluate_variant(train_df, val_df, variant_name):
             pipe.fit(X_train, y_train)
             preds = pipe.predict(X_val)
             acc = accuracy_score(y_val, preds)
-            print(f"✅ {variant_name} | {name} Accuracy: {acc:.4f}")
+            print(f" {variant_name} | {name} Accuracy: {acc:.4f}")
             results.append({'Variant': variant_name, 'Model': name, 'Accuracy': acc})
         except Exception as e:
-            print(f"❌ {variant_name} | {name} failed: {e}")
+            print(f" {variant_name} | {name} failed: {e}")
     return results
-
-# ============================================
-# 🔹 Đánh giá từng biến thể
-# ============================================
+#  Đánh giá từng biến thể
 results = []
 results += evaluate_variant(median_train, median_val, 'Median Impute')
 results += evaluate_variant(group_train, group_val, 'Group Impute')
 results += evaluate_variant(model_train, model_val, 'Model Impute')
 
 # ============================================
-# 🔹 Lưu kết quả
+#  Lưu kết quả
 # ============================================
 results_df = pd.DataFrame(results)
 results_df.to_csv('model_accuracy_summary.csv', index=False)
@@ -742,19 +790,19 @@ print(" Kết quả đã lưu vào model_accuracy_summary.csv")
 results_df
 
 ## ============================================
-# 🔹 Chuẩn bị dữ liệu test và tạo file submission
+#  Chuẩn bị dữ liệu test và tạo file submission
 # ============================================
 
-# 1️⃣ Đọc kết quả accuracy
+# Đọc kết quả accuracy
 results_df = pd.read_csv('model_accuracy_summary.csv')
 
-# 2️⃣ Lấy model + variant có accuracy cao nhất
+# Lấy model + variant có accuracy cao nhất
 best_row = results_df.loc[results_df['Accuracy'].idxmax()]
 best_variant = best_row['Variant']
 best_model_name = best_row['Model']
 print(f"Best Variant: {best_variant}, Best Model: {best_model_name}, Accuracy: {best_row['Accuracy']:.4f}")
 
-# 3️⃣ Load dữ liệu train + val tương ứng với variant tốt nhất
+#  Load dữ liệu train + val tương ứng với variant tốt nhất
 variant_map = {
     'Median Impute': ('median_impute_train.csv', 'median_impute_val.csv'),
     'Group Impute': ('group_impute_train.csv', 'group_impute_val.csv'),
@@ -769,7 +817,7 @@ full_train = pd.concat([train_df, val_df], axis=0).reset_index(drop=True)
 X_full = full_train.drop('Survived', axis=1)
 y_full = full_train['Survived']
 
-# 4️⃣ Xác định preprocessor
+#  Xác định preprocessor
 cat_cols = X_full.select_dtypes(include=['object', 'category']).columns.tolist()
 num_cols = X_full.select_dtypes(exclude=['object', 'category']).columns.tolist()
 pre = ColumnTransformer(transformers=[
@@ -777,7 +825,7 @@ pre = ColumnTransformer(transformers=[
     ('cat', OneHotEncoder(drop='first', sparse_output=False, handle_unknown='ignore'), cat_cols)
 ], remainder='passthrough')
 
-# 5️⃣ Khởi tạo model tương ứng
+#  Khởi tạo model tương ứng
 if best_model_name == 'Logistic':
     model = LogisticRegression(max_iter=500, random_state=42)
 elif best_model_name == 'RandomForest':
@@ -790,15 +838,15 @@ elif best_model_name == 'Voting':
 else:
     raise ValueError(f"Unknown model: {best_model_name}")
 
-# 6️⃣ Fit pipeline trên toàn bộ dữ liệu train
+#  Fit pipeline trên toàn bộ dữ liệu train
 final_pipe = Pipeline([
     ('pre', pre),
     ('model', model)
 ])
 final_pipe.fit(X_full, y_full)
-print("✅ Model đã fit trên toàn bộ train + val.")
+print(" Model đã fit trên toàn bộ train + val.")
 
-# 7️⃣ Load test và áp dụng feature engineering (như trước)
+# Load test và áp dụng feature engineering (như trước)
 test = pd.read_csv('test.csv')
 test['Fare'] = test['Fare'].fillna(X_full['Fare'].median())
 test['Age'] = test['Age'].fillna(X_full['Age'].median())
@@ -808,12 +856,12 @@ test_fe = feature_engineer(test)
 
 X_test = test_fe.drop(columns=['PassengerId'], errors='ignore')
 
-# 8️⃣ Dự đoán và tạo submission
+# Dự đoán và tạo submission
 test_pred = final_pipe.predict(X_test)
 submission = pd.DataFrame({
     'PassengerId': test['PassengerId'],
     'Survived': test_pred.astype(int)
 })
 submission.to_csv('submission_best.csv', index=False)
-print("✅ Saved submission_best.csv — ready to upload!")
+print(" Saved submission_best.csv — ready to upload!")
 submission.head()

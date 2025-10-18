@@ -1,0 +1,11 @@
+1. 7 mô hình trong 7 file code riêng biệt ( 1 file để EDA, xử lý missing value, feature engineeering. 7 file modeling ( mỗi file 1 model ) )
+2. EDA phải đầy đủ luận lý, phân tích ngay trên pptx báo cáo
+3. Hình vẽ mô tả quá trình, file excel thực nghiệm, minh chứng ( Mỗi khi test, lưu kết quả lại rồi mới improve ) ( file excel mô tả kết quả của mỗi lần chạy, gồm các cột ngày, accuracy, precision, recall, f1-score, auc-roc, confusion matrix ,....   )
+4. Paper phải có biểu đồ, hình vẽ,... mô tả quá trình thực nghiệm
+5. Poster sẽ chứa các hình vẽ, biểu đồ, kết quả, so sánh giữa các model, kết quả các lần chạy,...
+6. Phải có phương pháp luận rõ ràng trong poster
+7. EDA chi tiết hơn ( cụ thể về missing value, biểu đồ phân bố missing value )
+8. Chi tiết về K-fold 
+9. Tham số chi tiết của mỗi model
+10. F1-Score, ROC AUC.
+11. Tinh chỉnh tham số cho model -> lưu kết quả cho mỗi lần tinh chỉnh để đánh giá
